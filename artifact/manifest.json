@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "tau": 2.729777845325742,
+  "alpha": 0.05,
+  "schema": [
+    "cache-references",
+    "cycles",
+    "LLC-loads"
+  ],
+  "feature_names": [
+    "cache-references",
+    "cycles",
+    "LLC-loads",
+    "llc_per_cache_ref",
+    "llc_per_cycle",
+    "cache_ref_per_cycle"
+  ],
+  "hashes": {
+    "preprocessor.joblib": "95f55fc909ef345b51b54403ada8f4d46528c2686da7ef3f55b0d4b9afe48ca5",
+    "ensemble_detector.joblib": "1f9dfe166711440515307eda30d384ef72b15d8243270b21403eb439c0957ad6",
+    "config.json": "3260a2284e88b0f1a419c2ce259ee2b7ae9f4a33dab7c387e9976d52ef0b0285"
+  }
+}

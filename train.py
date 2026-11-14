@@ -12,10 +12,11 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
+
 # Allow importing from src/
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-import numpy as np
 import yaml
 
 from hpcbd.io import load_csv, DEFAULT_SCHEMA
@@ -23,10 +24,9 @@ from hpcbd.audit import audit, save_audit
 from hpcbd.preprocess import Preprocessor
 from hpcbd.detectors import (
     MahalanobisDetector, PCADetector, IForestDetector,
-    KNNDetector, GMMDetector, OCSVMDetector,
+    KNNDetector, GMMDetector, OCSVMDetector, PyODECODDetector,
 )
-from hpcbd.ensemble import EnsembleDetector, normalise_scores, fuse_scores
-from hpcbd.calibrate import calibrate
+from hpcbd.ensemble import EnsembleDetector
 from hpcbd.artifact import save_artifact
 
 
@@ -44,8 +44,8 @@ def main() -> None:
     parser.add_argument("--data", required=True, help="Path to trace CSV")
     parser.add_argument("--out", default="artifact/", help="Output directory for artifact")
     parser.add_argument("--config", default="configs/default.yaml")
-    parser.add_argument("--run-experiments", action="store_true",
-                        help="Run full CV experiment before final fit")
+    parser.add_argument("--run-experiments", action="store_true", default=True,
+                        help="Run leakage-safe CV calibration before final fit (default)")
     args = parser.parse_args()
 
     t_start = time.time()
@@ -97,25 +97,21 @@ def main() -> None:
     print(f"  Feature names: {preprocessor.feature_names}")
 
     # --- Step 4: Run experiments (CV) ---
-    if args.run_experiments:
-        print(f"\n[4/6] Running {cv_repeats}×{cv_folds}-fold CV experiments...")
-        from experiments.run_experiments import run_experiments
-        exp_results = run_experiments(
-            data_path=args.data,
-            cv_folds=cv_folds,
-            cv_repeats=cv_repeats,
-            seed=seed,
-            alpha=alpha,
-        )
-        Path("reports").mkdir(exist_ok=True)
-        with open("reports/experiment_results.json", "w") as f:
-            json.dump(exp_results, f, indent=2)
-        print(f"  CV tau = {exp_results['tau']:.6f}")
-        for name, s in exp_results["per_detector"].items():
-            print(f"  {name}: OOF mean={s['oof_mean']:.4f} ± {s['oof_std']:.4f}")
-    else:
-        print("\n[4/6] Skipping CV experiments (use --run-experiments to enable).")
-        exp_results = None
+    print(f"\n[4/6] Running {cv_repeats}×{cv_folds}-fold CV experiments...")
+    from experiments.run_experiments import run_experiments
+    exp_results = run_experiments(
+        data_path=args.data,
+        cv_folds=cv_folds,
+        cv_repeats=cv_repeats,
+        seed=seed,
+        alpha=alpha,
+    )
+    Path("reports").mkdir(exist_ok=True)
+    with open("reports/experiment_results.json", "w", encoding="utf-8") as f:
+        json.dump(exp_results, f, indent=2)
+    print(f"  CV tau = {exp_results['tau']:.6f}")
+    for name, s in exp_results["per_detector"].items():
+        print(f"  {name}: OOF mean={s['oof_mean']:.4f} ± {s['oof_std']:.4f}")
 
     # --- Step 5: Final fit on full data ---
     print("\n[5/6] Fitting final ensemble on full dataset...")
@@ -140,10 +136,18 @@ def main() -> None:
             kernel=dcfg.get("ocsvm", {}).get("kernel", "rbf"),
         ),
     }
+    if dcfg.get("pyod_ecod", {}).get("enabled", True):
+        detectors["pyod_ecod"] = PyODECODDetector()
 
     fusion_rule = cfg.get("fusion", {}).get("rule", "mean")
     ensemble = EnsembleDetector(detectors, fusion_rule=fusion_rule)
-    ensemble.fit(X)
+    # Fit on all benign traces, but use fold-held-out scores for the score
+    # reference distribution and threshold to avoid in-sample calibration.
+    ensemble.fit(X, oof_scores={
+        name: np.asarray(scores)
+        for name, scores in exp_results["raw_oof_scores"].items()
+        if name in detectors
+    })
 
     # Score training data to get reference distribution
     fused_train, per_det_train = ensemble.score(X)
@@ -155,7 +159,7 @@ def main() -> None:
 
     # --- Step 6: Calibrate ---
     print(f"\n[6/6] Calibrating threshold (alpha={alpha})...")
-    tau = calibrate(fused_train, alpha=alpha)
+    tau = float(exp_results["tau"])
     n_flagged = int((fused_train > tau).sum())
     print(f"  tau = {tau:.6f}")
     print(f"  Samples flagged on training set: {n_flagged}/{len(fused_train)} "

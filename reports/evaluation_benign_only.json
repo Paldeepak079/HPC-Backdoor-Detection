@@ -1,0 +1,7 @@
+{
+  "n_samples": 800,
+  "n_positive": 0,
+  "threshold": 2.729777845325742,
+  "classification_metrics_available": false,
+  "message": "Accuracy, TPR, FPR, F1 and AUROC require both benign and anomalous labels; no classification metrics were fabricated."
+}

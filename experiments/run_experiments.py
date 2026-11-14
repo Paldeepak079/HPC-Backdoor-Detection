@@ -17,7 +17,7 @@ from hpcbd.io import load_csv
 from hpcbd.preprocess import Preprocessor
 from hpcbd.detectors import (
     MahalanobisDetector, PCADetector, IForestDetector,
-    KNNDetector, GMMDetector, OCSVMDetector,
+    KNNDetector, GMMDetector, OCSVMDetector, PyODECODDetector,
 )
 from hpcbd.ensemble import normalise_scores, fuse_scores
 from hpcbd.calibrate import calibrate
@@ -31,6 +31,7 @@ def make_detectors(seed: int = 42) -> dict:
         "knn": KNNDetector(k=10),
         "gmm": GMMDetector(max_components=6, random_state=seed),
         "ocsvm": OCSVMDetector(nu=0.05, kernel="rbf"),
+        "pyod_ecod": PyODECODDetector(),
     }
 
 
@@ -54,8 +55,12 @@ def run_experiments(
 
     rkf = RepeatedKFold(n_splits=cv_folds, n_repeats=cv_repeats, random_state=seed)
 
-    # Store OOF scores per detector
+    # Store OOF scores per detector. Every fold fits preprocessing and models
+    # on the fold's training partition only.
     oof_scores: dict[str, np.ndarray] = {
+        name: np.zeros(n_samples) for name in make_detectors().keys()
+    }
+    raw_oof_scores: dict[str, np.ndarray] = {
         name: np.zeros(n_samples) for name in make_detectors().keys()
     }
     # Count how many folds each sample appeared in val set
@@ -89,11 +94,12 @@ def run_experiments(
                 fold_det_scores[name] = norm_val
                 # Accumulate OOF
                 oof_scores[name][val_idx] += norm_val
-                fold_counts[val_idx] += 1
+                raw_oof_scores[name][val_idx] += val_sc
             except Exception as e:
                 print(f"  [warn] Fold {fold_idx+1}, detector {name}: {e}")
                 fold_det_scores[name] = np.zeros(len(val_idx))
 
+        fold_counts[val_idx] += 1
         # Fuse for this fold
         fused_val = fuse_scores(fold_det_scores, rule="mean")
 
@@ -115,9 +121,16 @@ def run_experiments(
     safe_counts = np.maximum(fold_counts, 1) / cv_repeats  # normalize by repeats
     for name in oof_scores:
         oof_scores[name] = oof_scores[name] / safe_counts
+        raw_oof_scores[name] = raw_oof_scores[name] / safe_counts
 
-    # Fuse final OOF
-    fused_oof = fuse_scores(oof_scores, rule="mean")
+    # Calibrate in the same score domain used by the final ensemble: raw
+    # detector scores are mapped through the aggregated raw OOF references.
+    # The fold-local normalised scores remain useful for stability reporting.
+    calibration_scores = {
+        name: normalise_scores(scores, scores)
+        for name, scores in raw_oof_scores.items()
+    }
+    fused_oof = fuse_scores(calibration_scores, rule="mean")
 
     # Calibrate
     tau = calibrate(fused_oof, alpha=alpha)
@@ -154,6 +167,7 @@ def run_experiments(
         "fold_summary": fold_results,
         # Store raw OOF as lists for JSON
         "oof_scores": {name: sc.tolist() for name, sc in oof_scores.items()},
+        "raw_oof_scores": {name: sc.tolist() for name, sc in raw_oof_scores.items()},
         "fused_oof": fused_oof.tolist(),
     }
 

@@ -6,6 +6,8 @@ from .iforest import IForestDetector
 from .knn import KNNDetector
 from .gmm import GMMDetector
 from .ocsvm import OCSVMDetector
+from .pyod_ecod import PyODECODDetector
+from .river_hst import RiverHalfSpaceTreesDetector
 
 __all__ = [
     "MahalanobisDetector",
@@ -14,4 +16,6 @@ __all__ = [
     "KNNDetector",
     "GMMDetector",
     "OCSVMDetector",
+    "PyODECODDetector",
+    "RiverHalfSpaceTreesDetector",
 ]

@@ -31,7 +31,9 @@ class Preprocessor:
         scaler: str = "robust",
     ) -> None:
         self.add_ratios = add_ratios
-        self.transform = transform
+        # Do not call this attribute ``transform``: that would shadow the
+        # public transform() method on the fitted instance.
+        self.transform_name = transform
         self.scaler = scaler
 
         # Fitted state
