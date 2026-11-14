@@ -23,23 +23,31 @@ type ExportedRun = {
 };
 
 const LEGACY_DETECTORS = ['IForest', 'kNN', 'GMM', 'OCSVM', 'ECOD'];
-const displayDetectorName = (name: string) => name === 'mahalanobis' ? 'Mahalanobis' : name.toUpperCase();
+const ACTIVE_DETECTORS = ['Mahalanobis', 'PCA'] as const;
 
 function buildRunData(exported: ExportedRun): RunData {
   if (!Array.isArray(exported.rows) || exported.rows.length === 0) throw new Error('run.json contains no trace rows.');
   if (!Number.isFinite(exported.threshold) || !Number.isFinite(exported.alpha)) throw new Error('run.json has an invalid threshold or alpha.');
+  if (!['mahalanobis', 'pca'].every(name => exported.meta.detector_names.includes(name))) {
+    throw new Error('run.json does not contain the required Mahalanobis and PCA detector scores.');
+  }
   const rows: TraceRow[] = exported.rows.map((row, index) => {
     if (!Number.isFinite(row.score) || (row.label !== 0 && row.label !== 1)) throw new Error(`run.json row ${index + 1} is invalid.`);
+    const stage_scores = {
+      Mahalanobis: row.stage_scores.mahalanobis,
+      PCA: row.stage_scores.pca,
+    };
+    if (!Object.values(stage_scores).every(Number.isFinite)) throw new Error(`run.json row ${index + 1} is missing an active detector score.`);
     return {
       row_id: row.row_id,
       score: row.score,
       label: row.label,
       top_features: row.top_features.map(feature => ({ name: feature.feature, z_score: feature.z_score, direction: feature.direction })),
-      stage_scores: Object.fromEntries(Object.entries(row.stage_scores).map(([name, value]) => [displayDetectorName(name), value])),
+      stage_scores,
     };
   });
   return {
-    meta: { timestamp: exported.meta.generated_at, n_rows: exported.calibration.n_total, n_flagged: exported.calibration.n_flagged, threshold: exported.threshold, alpha: exported.alpha, detectors: exported.meta.detector_names.map(displayDetectorName), config_hash: 'exported run.json' },
+    meta: { timestamp: exported.meta.generated_at, n_rows: exported.calibration.n_total, n_flagged: exported.calibration.n_flagged, threshold: exported.threshold, alpha: exported.alpha, detectors: [...ACTIVE_DETECTORS], config_hash: 'exported run.json' },
     rows,
     calibration: { oof_scores: rows.map(row => row.score), oof_fpr_at_alpha: exported.calibration.n_flagged / exported.calibration.n_total, alpha: exported.alpha, tau: exported.threshold },
   };
@@ -122,7 +130,7 @@ function DashboardPage({ page, data, dataError }: { page: Page; data: RunData; d
         <p className="drawer-copy">{selectedRow.label === 1 ? 'Flagged — deviates from benign profile.' : 'Clean — within the calibrated benign profile.'}</p>
         <StatusPill tone={selectedRow.label === 1 ? 'warn' : 'ok'}>{selectedRow.label === 1 ? 'FLAGGED' : 'CLEAN'}</StatusPill>
         <div className="drawer-section"><h3>Top feature deviations</h3>{selectedRow.top_features.map(feature => <div className="feature-deviation" key={feature.name}><div><span>{feature.name}</span><strong>{feature.z_score > 0 ? '+' : ''}{feature.z_score.toFixed(2)}σ</strong></div><div className="feature-deviation-track"><span style={{ width: `${Math.min(Math.abs(feature.z_score), 5) / 5 * 100}%` }} /></div></div>)}</div>
-        <div className="drawer-section"><h3>Primary detector scores</h3>{['Mahalanobis', 'PCA'].map(name => <div className="detector-row" key={name}><span>{name}</span><strong>{selectedRow.stage_scores[name]?.toFixed(4) ?? 'Not enabled'}</strong></div>)}</div>
+        <div className="drawer-section"><h3>Primary detector scores</h3>{ACTIVE_DETECTORS.map(name => <div className="detector-row" key={name}><span>{name}</span><strong>{selectedRow.stage_scores[name].toFixed(4)}</strong></div>)}</div>
         <details className="advanced-scores"><summary>Legacy/Disabled Detectors</summary>{LEGACY_DETECTORS.map(name => <div className="detector-row legacy-score" key={name}><span>{name}</span><strong>Not part of active export</strong></div>)}</details>
       </motion.aside>
       </>
