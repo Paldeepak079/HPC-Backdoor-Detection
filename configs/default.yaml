@@ -1,0 +1,25 @@
+seed: 42
+alpha: 0.05
+cv_folds: 5
+cv_repeats: 10
+detectors:
+  mahalanobis:
+    shrinkage: ledoit_wolf
+  pca:
+    variance_threshold: 0.95
+  iforest:
+    n_estimators: 200
+    max_samples: 256
+  knn:
+    k: 10
+  gmm:
+    max_components: 6
+  ocsvm:
+    nu: 0.05
+    kernel: rbf
+fusion:
+  rule: mean
+preprocess:
+  transform: log1p
+  scaler: robust
+  add_ratios: true

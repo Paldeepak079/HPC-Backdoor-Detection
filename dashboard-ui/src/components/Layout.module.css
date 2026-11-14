@@ -1,0 +1,206 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, #0A0E1A 0%, #0D1428 50%, #0A1020 100%);
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 14, 26, 0.85);
+  border-right: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px);
+  transition: width var(--transition-std), min-width var(--transition-std);
+  position: relative;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+  min-width: var(--sidebar-collapsed);
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  min-height: 72px;
+  overflow: hidden;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--info-proxy) 100%);
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity var(--transition-std), width var(--transition-std);
+}
+
+.logoText .name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  letter-spacing: -0.3px;
+}
+
+.logoText .sub {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.sidebar.collapsed .logoText {
+  opacity: 0;
+  width: 0;
+}
+
+.nav {
+  flex: 1;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.navItem:hover {
+  background: var(--glass-fill);
+  color: var(--text-1);
+}
+
+.navItem.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.navItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.navIcon {
+  font-size: 18px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navLabel {
+  transition: opacity var(--transition-std);
+}
+
+.sidebar.collapsed .navLabel {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.sampleBadge {
+  margin: 8px;
+  padding: 6px 8px;
+  background: var(--warn-dim);
+  border: 1px solid rgba(245, 181, 68, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--warn);
+  text-align: center;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  transition: opacity var(--transition-std);
+}
+
+.sidebar.collapsed .sampleBadge {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  margin: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-fill);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  font-size: 16px;
+}
+
+.collapseBtn:hover {
+  background: var(--glass-fill-hover);
+  color: var(--text-1);
+}
+
+.main {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.pageWrapper {
+  padding: 24px;
+  min-height: 100%;
+  animation: fadeSlideIn var(--transition-std) ease both;
+}
+
+.sidebarFooter {
+  padding: 12px 8px;
+  border-top: 1px solid var(--glass-border);
+}
