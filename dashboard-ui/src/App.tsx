@@ -247,7 +247,7 @@ export default function App() {
     fetch('/data/predictions.csv').then(response => {
       if (!response.ok) throw new Error(`Inference artifact request failed (${response.status}).`);
       return response.text();
-    }).then(text => setRunData(buildRunData(text, manifest), false)).catch(error => setDataError(error instanceof Error ? error.message : 'Inference artifact could not be loaded.'));
+    }).then(text => setRunData(buildRunData(text, manifest))).catch(error => setDataError(error instanceof Error ? error.message : 'Inference artifact could not be loaded.'));
   }, [manifest, runData, setRunData]);
 
   useEffect(() => {
@@ -260,7 +260,7 @@ export default function App() {
     reader.onload = () => {
       try {
         setDataError(null);
-        setRunData(buildRunData(String(reader.result), manifest), false);
+        setRunData(buildRunData(String(reader.result), manifest));
       } catch (error) {
         setDataError(error instanceof Error ? error.message : 'CSV validation failed.');
       }

@@ -145,26 +145,6 @@
   overflow: hidden;
 }
 
-.sampleBadge {
-  margin: 8px;
-  padding: 6px 8px;
-  background: var(--warn-dim);
-  border: 1px solid rgba(245, 181, 68, 0.3);
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--warn);
-  text-align: center;
-  letter-spacing: 0.5px;
-  line-height: 1.4;
-  transition: opacity var(--transition-std);
-}
-
-.sidebar.collapsed .sampleBadge {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .collapseBtn {
   display: flex;
   align-items: center;

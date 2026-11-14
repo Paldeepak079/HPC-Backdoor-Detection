@@ -241,9 +241,17 @@ Everything else — empty `tests/`, no CI, no `.gitignore`/`LICENSE`, broken REA
 - M6 — Status: FIXED (verified). NumPy floating NaN/Inf values serialize to JSON `null`, and dashboard export rejects predictions without `score` and `label`.
 - MF3 — Status: FIXED (verified). Dashboard labels distinguish true benign OOF reference data from current-run fallback scores and no longer call the current flag rate a benign OOF FPR.
 - M7 — Status: FIXED (verified). `matplotlib` is pinned in requirements and the README documents the explicit `make_report.py` step.
+- MF4 — Status: FIXED (verified). Mobile sidebar, main-content padding, and page-wrapper rules now use the corresponding CSS-module selectors.
+- MF5 — Status: FIXED (verified). Pipeline node and gauge values share the ECDF-derived score domain, and all seven detector nodes connect to fusion.
+- MF6 — Status: FIXED (verified). Unused run-data loader/sample state, drawer stylesheet, Vite counter/style files, and unreferenced template assets were removed.
+- P2 testing/CI — Status: FIXED (verified). Focused regression coverage and separate Python/dashboard GitHub Actions jobs are present; known conformal-quantile and tied-AUROC defects are explicit expected failures.
 
 ## Fix log
 
 2026-11-15 — Changed `experiments/run_experiments.py`, `src/hpcbd/ensemble.py`, `src/hpcbd/detectors/knn.py`, `src/hpcbd/metrics.py`, `src/hpcbd/cli.py`, `export_dashboard.py`, `requirements.txt`, `README.md`, and `dashboard-ui/src/App.tsx`; verified Python syntax, PCA single-row/batch equality, strict malformed-input rejection, non-constant saved detector columns, OOF means of 1.02–1.21 with max 13.816, rank-mean reference invariance, kNN new-query behavior, NaN JSON conversion, and `npm run build`.
 
+2026-11-15 — Changed `dashboard-ui/src/components/NeuralPipeline.tsx`, `dashboard-ui/src/components/Layout.module.css`, `dashboard-ui/src/components/Layout.tsx`, `dashboard-ui/src/store/runData.ts`, `tests/`, `.github/workflows/ci.yml`, `.gitignore`, `requirements.txt`, and `README.md`; verified `python -m pytest -q` (`5 passed, 2 xfailed`) and `npm run build`.
+
 The prescribed fresh `python train.py`/`predict.py` acceptance run could not complete in this workspace because `python` is 3.10 with scikit-learn 1.7.2, while the committed artifact is serialized with 1.9.0 and the pinned dependency set requires Python 3.11+; the installed Python 3.13 launcher is unavailable. The existing saved outputs show 28/800 flagged rows and no constant detector-score column. Re-run the two commands in the pinned compatible environment before treating the regenerated artifact as verified.
+
+Regression-suite note: the new conformal-order-statistic and tied-AUROC checks are marked expected failures. They reproduce the existing `calibrate.py` interpolation and `metrics.py` tie-handling defects documented in P2/M8; no production application code was changed for them.

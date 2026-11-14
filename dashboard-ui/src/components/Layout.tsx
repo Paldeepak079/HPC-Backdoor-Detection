@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import s from './Layout.module.css';
-import { useRunDataStore } from '../store/runData';
 
 export type Page = 'overview' | 'live' | 'traces' | 'model';
 
@@ -26,7 +25,6 @@ interface LayoutProps {
 
 export default function Layout({ currentPage, onNavigate, children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const isSampleData = useRunDataStore(s => s.isSampleData);
 
   return (
     <div className={s.layout}>
@@ -58,12 +56,6 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
             </motion.button>
           ))}
         </nav>
-
-        {isSampleData && (
-          <div className={s.sampleBadge}>
-            SAMPLE DATA<br />NOT A RESULT
-          </div>
-        )}
 
         <div className={s.sidebarFooter}>
           <button

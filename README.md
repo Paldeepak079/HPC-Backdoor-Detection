@@ -28,6 +28,15 @@ Python version:
 python -m pip install -r requirements.txt
 ```
 
+Run the regression suite with:
+
+```powershell
+python -m pytest -q
+```
+
+GitHub Actions runs the Python suite on Python 3.13 and builds the dashboard on
+every push and pull request.
+
 ## Train and reproduce the artifact
 
 Run from the repository root:
