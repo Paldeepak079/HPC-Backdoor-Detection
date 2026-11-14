@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import s from './ScoreDistribution.module.css';
 
 interface ScoreDistributionProps {
@@ -118,12 +119,14 @@ export default function ScoreDistribution({
             const tx = PAD.left + (threshold / maxScore) * plotW;
             return (
               <g>
-                <line
+                <motion.line
                   x1={tx} y1={PAD.top}
                   x2={tx} y2={PAD.top + plotH}
                   stroke="var(--threat)"
                   strokeWidth="1"
                   strokeDasharray="3,2"
+                  animate={{ opacity: [0.45, 1, 0.45], strokeWidth: [1, 1.8, 1] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <text
                   x={tx + 1} y={PAD.top + 8}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -146,6 +147,14 @@ def main() -> None:
     serialisable = _make_serialisable(run_json)
     with open(run_json_path, "w", encoding="utf-8") as f:
         json.dump(serialisable, f, indent=2)
+
+    # Keep the static dashboard inputs synchronized with this exact export.
+    # The React app consumes these files directly rather than fabricating data.
+    shutil.copy2(args.predictions, out_path / "predictions.csv")
+    shutil.copy2(Path(args.artifact) / "manifest.json", out_path / "manifest.json")
+    experiment_results = Path(args.artifact).parent / "reports" / "experiment_results.json"
+    if experiment_results.exists():
+        shutil.copy2(experiment_results, out_path / "experiment_results.json")
 
     print(f"[export] run.json written to {run_json_path}")
     print(f"  Total rows: {n}")

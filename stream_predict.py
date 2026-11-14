@@ -17,7 +17,13 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from hpcbd.calibrate import calibrate
 from hpcbd.detectors import RiverHalfSpaceTreesDetector
-from hpcbd.io import DEFAULT_SCHEMA, load_csv
+from hpcbd.io import (
+    DEFAULT_SCHEMA,
+    EmptyInputError,
+    NonFiniteValueError,
+    SchemaMismatchError,
+    load_csv,
+)
 from hpcbd.preprocess import Preprocessor
 
 
@@ -29,8 +35,12 @@ def main() -> None:
     parser.add_argument("--alpha", type=float, default=0.05)
     args = parser.parse_args()
 
-    reference = load_csv(args.reference, schema=DEFAULT_SCHEMA)
-    stream = load_csv(args.input, schema=DEFAULT_SCHEMA)
+    try:
+        reference = load_csv(args.reference, schema=DEFAULT_SCHEMA)
+        stream = load_csv(args.input, schema=DEFAULT_SCHEMA)
+    except (FileNotFoundError, EmptyInputError, SchemaMismatchError, NonFiniteValueError) as error:
+        print(f"[stream] ERROR: invalid input CSV: {error}", file=sys.stderr)
+        raise SystemExit(2) from error
     prep = Preprocessor()
     X_reference = prep.fit_transform(reference)
     X_stream = prep.transform(stream)

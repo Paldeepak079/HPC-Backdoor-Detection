@@ -33,8 +33,31 @@ def test_repeated_oof_raw_scores_are_per_sample_means(monkeypatch) -> None:
     })
     monkeypatch.setattr(run_experiments, "load_csv", lambda _: frame)
     monkeypatch.setattr(run_experiments, "Preprocessor", IdentityPreprocessor)
-    monkeypatch.setattr(run_experiments, "make_detectors", lambda seed=42: {"identity": IdentityDetector()})
+    monkeypatch.setattr(
+        run_experiments,
+        "make_detectors",
+        lambda seed=42, detector_config=None: {"identity": IdentityDetector()},
+    )
 
     result = run_experiments.run_experiments(cv_folds=2, cv_repeats=3)
 
+    assert len(result["oof_scores"]["identity"]) == len(frame)
     assert np.allclose(result["raw_oof_scores"]["identity"], frame["cache-references"])
+
+
+def test_default_detector_configuration_uses_the_two_selected_detectors() -> None:
+    assert set(run_experiments.make_detectors()) == {"mahalanobis", "pca"}
+
+
+def test_benign_oof_flag_rate_is_within_alpha_tolerance() -> None:
+    result = run_experiments.run_experiments(
+        data_path="HPC traces/trace.csv",
+        detector_config={
+            "mahalanobis": {"enabled": True},
+            "pca": {"enabled": True, "variance_threshold": 0.95},
+        },
+    )
+    fused_oof = np.asarray(result["fused_oof"])
+    flag_rate = np.mean(fused_oof > result["tau"])
+
+    assert 0.03 <= flag_rate <= 0.08

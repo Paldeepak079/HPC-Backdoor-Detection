@@ -106,10 +106,8 @@ def main() -> None:
         seed=seed,
         alpha=alpha,
         fusion_rule=cfg.get("fusion", {}).get("rule", "mean"),
+        detector_config=cfg.get("detectors", {}),
     )
-    Path("reports").mkdir(exist_ok=True)
-    with open("reports/experiment_results.json", "w", encoding="utf-8") as f:
-        json.dump(exp_results, f, indent=2)
     print(f"  CV tau = {exp_results['tau']:.6f}")
     for name, s in exp_results["per_detector"].items():
         print(f"  {name}: OOF mean={s['oof_mean']:.4f} ± {s['oof_std']:.4f}")
@@ -117,27 +115,33 @@ def main() -> None:
     # --- Step 5: Final fit on full data ---
     print("\n[5/6] Fitting final ensemble on full dataset...")
     dcfg = cfg.get("detectors", {})
-    detectors = {
-        "mahalanobis": MahalanobisDetector(),
-        "pca": PCADetector(
+    detectors = {}
+    if dcfg.get("mahalanobis", {}).get("enabled", True):
+        detectors["mahalanobis"] = MahalanobisDetector()
+    if dcfg.get("pca", {}).get("enabled", True):
+        detectors["pca"] = PCADetector(
             variance_threshold=dcfg.get("pca", {}).get("variance_threshold", 0.95)
-        ),
-        "iforest": IForestDetector(
+        )
+    # DISABLED: P1-1 keeps non-selected detector code available behind config flags.
+    if dcfg.get("iforest", {}).get("enabled", False):
+        detectors["iforest"] = IForestDetector(
             n_estimators=dcfg.get("iforest", {}).get("n_estimators", 200),
             max_samples=dcfg.get("iforest", {}).get("max_samples", 256),
             random_state=seed,
-        ),
-        "knn": KNNDetector(k=dcfg.get("knn", {}).get("k", 10)),
-        "gmm": GMMDetector(
+        )
+    if dcfg.get("knn", {}).get("enabled", False):
+        detectors["knn"] = KNNDetector(k=dcfg.get("knn", {}).get("k", 10))
+    if dcfg.get("gmm", {}).get("enabled", False):
+        detectors["gmm"] = GMMDetector(
             max_components=dcfg.get("gmm", {}).get("max_components", 6),
             random_state=seed,
-        ),
-        "ocsvm": OCSVMDetector(
+        )
+    if dcfg.get("ocsvm", {}).get("enabled", False):
+        detectors["ocsvm"] = OCSVMDetector(
             nu=dcfg.get("ocsvm", {}).get("nu", 0.05),
             kernel=dcfg.get("ocsvm", {}).get("kernel", "rbf"),
-        ),
-    }
-    if dcfg.get("pyod_ecod", {}).get("enabled", True):
+        )
+    if dcfg.get("pyod_ecod", {}).get("enabled", False):
         detectors["pyod_ecod"] = PyODECODDetector()
 
     fusion_rule = cfg.get("fusion", {}).get("rule", "mean")
@@ -165,6 +169,27 @@ def main() -> None:
     print(f"  tau = {tau:.6f}")
     print(f"  Samples flagged on training set: {n_flagged}/{len(fused_train)} "
           f"({100*n_flagged/len(fused_train):.1f}%)")
+    flag_rate = n_flagged / len(fused_train)
+    if not 0.03 <= flag_rate <= 0.08:
+        raise RuntimeError(
+            f"Benign flag rate {flag_rate:.1%} is outside the 3–8% acceptance range; "
+            "artifacts and reports were not regenerated."
+        )
+
+    Path("reports").mkdir(exist_ok=True)
+    with open("reports/experiment_results.json", "w", encoding="utf-8") as f:
+        json.dump(exp_results, f, indent=2)
+    with open("reports/evaluation_benign_only.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "n_samples": int(len(df)),
+            "n_positive": 0,
+            "threshold": tau,
+            "classification_metrics_available": False,
+            "message": (
+                "Accuracy, TPR, FPR, F1 and AUROC require both benign and anomalous "
+                "labels; no classification metrics were fabricated."
+            ),
+        }, f, indent=2)
 
     # Save artifact
     out_path = Path(args.out)

@@ -9,21 +9,32 @@ streaming:
   window_size: 250
 detectors:
   mahalanobis:
+    enabled: true
     shrinkage: ledoit_wolf
   pca:
+    enabled: true
     variance_threshold: 0.95
   iforest:
+    # DISABLED: P1-1
+    enabled: false
     n_estimators: 200
     max_samples: 256
   knn:
+    # DISABLED: P1-1
+    enabled: false
     k: 10
   gmm:
+    # DISABLED: P1-1
+    enabled: false
     max_components: 6
   ocsvm:
+    # DISABLED: P1-1
+    enabled: false
     nu: 0.05
     kernel: rbf
   pyod_ecod:
-    enabled: true
+    # DISABLED: P1-1
+    enabled: false
 fusion:
   rule: mean
 preprocess:

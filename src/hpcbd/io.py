@@ -22,6 +22,10 @@ class NonFiniteValueError(Exception):
     """Raised when DataFrame contains NaN or infinite values after loading."""
 
 
+class EmptyInputError(Exception):
+    """Raised when a CSV has no data rows."""
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -57,7 +61,13 @@ def load_csv(path: str | os.PathLike, *, schema: list[str] | None = None) -> pd.
     if not path.exists():
         raise FileNotFoundError(f"CSV file not found: {path}")
 
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except pd.errors.EmptyDataError as error:
+        raise EmptyInputError("CSV contains no header or data rows.") from error
+
+    if df.empty:
+        raise EmptyInputError("CSV contains no data rows.")
 
     # Coerce all numeric columns
     for col in df.columns:

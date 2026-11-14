@@ -23,16 +23,29 @@ from hpcbd.ensemble import normalise_scores, fuse_scores
 from hpcbd.calibrate import calibrate
 
 
-def make_detectors(seed: int = 42) -> dict:
-    return {
-        "mahalanobis": MahalanobisDetector(),
-        "pca": PCADetector(variance_threshold=0.95),
-        "iforest": IForestDetector(n_estimators=200, max_samples=256, random_state=seed),
-        "knn": KNNDetector(k=10),
-        "gmm": GMMDetector(max_components=6, random_state=seed),
-        "ocsvm": OCSVMDetector(nu=0.05, kernel="rbf"),
-        "pyod_ecod": PyODECODDetector(),
-    }
+def make_detectors(seed: int = 42, detector_config: dict | None = None) -> dict:
+    """Create only the detectors enabled by the training configuration."""
+    config = detector_config or {}
+    enabled = lambda name, default=False: config.get(name, {}).get("enabled", default)
+    detectors = {}
+    if enabled("mahalanobis", True):
+        detectors["mahalanobis"] = MahalanobisDetector()
+    if enabled("pca", True):
+        detectors["pca"] = PCADetector(
+            variance_threshold=config.get("pca", {}).get("variance_threshold", 0.95)
+        )
+    # DISABLED: P1-1 defaults retain the implementations without fitting them.
+    if enabled("iforest"):
+        detectors["iforest"] = IForestDetector(n_estimators=200, max_samples=256, random_state=seed)
+    if enabled("knn"):
+        detectors["knn"] = KNNDetector(k=10)
+    if enabled("gmm"):
+        detectors["gmm"] = GMMDetector(max_components=6, random_state=seed)
+    if enabled("ocsvm"):
+        detectors["ocsvm"] = OCSVMDetector(nu=0.05, kernel="rbf")
+    if enabled("pyod_ecod"):
+        detectors["pyod_ecod"] = PyODECODDetector()
+    return detectors
 
 
 def run_experiments(
@@ -42,6 +55,7 @@ def run_experiments(
     seed: int = 42,
     alpha: float = 0.05,
     fusion_rule: str = "mean",
+    detector_config: dict | None = None,
 ) -> dict:
     """Run repeated k-fold CV for all detectors.
 
@@ -59,10 +73,10 @@ def run_experiments(
     # Store OOF scores per detector. Every fold fits preprocessing and models
     # on the fold's training partition only.
     oof_scores: dict[str, np.ndarray] = {
-        name: np.zeros(n_samples) for name in make_detectors().keys()
+        name: np.zeros(n_samples) for name in make_detectors(seed, detector_config).keys()
     }
     raw_oof_scores: dict[str, np.ndarray] = {
-        name: np.zeros(n_samples) for name in make_detectors().keys()
+        name: np.zeros(n_samples) for name in make_detectors(seed, detector_config).keys()
     }
     # Count how many folds each sample appeared in val set
     fold_counts = np.zeros(n_samples, dtype=int)
@@ -82,7 +96,7 @@ def run_experiments(
         X_train = prep.fit_transform(df_train)
         X_val = prep.transform(df_val)
 
-        detectors = make_detectors(seed=seed)
+        detectors = make_detectors(seed=seed, detector_config=detector_config)
         fold_det_scores = {}
         fold_rank_references = {}
 
@@ -103,6 +117,18 @@ def run_experiments(
                 fold_det_scores[name] = np.zeros(len(val_idx))
 
         fold_counts[val_idx] += 1
+
+        # A complete repeat must hold every row out exactly once. This catches
+        # both accidental per-fold aggregation and incomplete OOF coverage.
+        if (fold_idx + 1) % cv_folds == 0:
+            completed_repeats = (fold_idx + 1) // cv_folds
+            if any(len(scores) != n_samples for scores in oof_scores.values()):
+                raise AssertionError("Each detector OOF score array must have one entry per row.")
+            if not np.all(fold_counts == completed_repeats):
+                raise AssertionError(
+                    "Each row must receive exactly one OOF score per completed CV repeat."
+                )
+
         # Fuse for this fold
         fused_val = fuse_scores(
             fold_det_scores,

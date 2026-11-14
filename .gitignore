@@ -5,3 +5,8 @@ __pycache__/
 dist/
 scores.csv
 predictions*.csv
+artifact/*.joblib
+node_modules/
+dashboard-ui/node_modules/
+dashboard-ui/dist/
+*.local.csv

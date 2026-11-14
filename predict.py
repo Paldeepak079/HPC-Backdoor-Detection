@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import numpy as np
 
 from hpcbd.artifact import load_artifact
-from hpcbd.io import load_csv
+from hpcbd.io import EmptyInputError, NonFiniteValueError, SchemaMismatchError, load_csv
 
 
 def main() -> None:
@@ -30,7 +30,11 @@ def main() -> None:
     print(f"  tau = {tau:.6f}, alpha = {alpha}")
 
     print(f"[predict] Loading input from: {args.input}")
-    df = load_csv(args.input, schema=schema)
+    try:
+        df = load_csv(args.input, schema=schema)
+    except (FileNotFoundError, EmptyInputError, SchemaMismatchError, NonFiniteValueError) as error:
+        print(f"[predict] ERROR: invalid input CSV: {error}", file=sys.stderr)
+        raise SystemExit(2) from error
     print(f"  Shape: {df.shape}")
 
     # Preprocess

@@ -43,6 +43,8 @@ Run from the repository root:
 
 ```powershell
 python train.py --data "HPC traces/trace.csv" --out artifact/
+python predict.py --input "HPC traces/trace.csv" --artifact artifact/ --out predictions.csv
+python export_dashboard.py --predictions predictions.csv --artifact artifact/ --out dashboard-ui/public/data/
 python make_report.py
 ```
 
@@ -61,7 +63,9 @@ Generated files:
 - `predictions.csv`
 - `reports/data_audit.{json,md}`
 - `reports/experiment_results.json`
+- `reports/evaluation_benign_only.json`
 - `reports/methodology_report.pdf` (from the documented `make_report.py` step)
+- `dashboard-ui/public/data/` (dashboard export)
 
 ## Score unseen traces
 
@@ -110,15 +114,14 @@ batch submission.
 
 ## Model choices and calibration
 
-The final batch ensemble uses:
+The default final batch ensemble uses:
 
 1. Ledoit-Wolf Mahalanobis distance.
 2. PCA reconstruction error plus Hotelling T².
-3. Isolation Forest.
-4. k-nearest-neighbour distance.
-5. BIC-selected Gaussian mixture negative log likelihood.
-6. One-Class SVM.
-7. PyOD ECOD.
+
+Isolation Forest, k-nearest-neighbour distance, BIC-GMM, One-Class SVM, and
+PyOD ECOD remain available behind explicit configuration flags but are disabled
+by default for the competition artifact.
 
 Each detector's score is mapped with the empirical CDF of its fold-held-out
 benign scores, then scores are averaged. The threshold is the conformal

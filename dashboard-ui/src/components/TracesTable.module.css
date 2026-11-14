@@ -120,7 +120,12 @@ td {
 
 tr {
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+tr:hover {
+  transform: translateX(3px);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 tr:hover td {

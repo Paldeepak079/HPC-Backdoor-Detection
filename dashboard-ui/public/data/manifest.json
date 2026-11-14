@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "tau": 2.724596381447843,
+  "tau": 2.9592651748109438,
   "alpha": 0.05,
   "schema": [
     "cache-references",
@@ -17,7 +17,7 @@
   ],
   "hashes": {
     "preprocessor.joblib": "95f55fc909ef345b51b54403ada8f4d46528c2686da7ef3f55b0d4b9afe48ca5",
-    "ensemble_detector.joblib": "241851bb7388d0bf15013e4cbf2724a9fd09490c65259b0ecf0fdd3adf2cfadb",
-    "config.json": "3260a2284e88b0f1a419c2ce259ee2b7ae9f4a33dab7c387e9976d52ef0b0285"
+    "ensemble_detector.joblib": "605eab4d71684dc470dd25737f690f93d249e28d50614a77b5b34ddc86600c86",
+    "config.json": "5c179762453466bd2db21a7136af56b4f7369dafd483ee2f3e9a5fbb4bdfc70a"
   }
 }

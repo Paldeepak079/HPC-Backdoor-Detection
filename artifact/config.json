@@ -11,27 +11,33 @@
   },
   "detectors": {
     "mahalanobis": {
+      "enabled": true,
       "shrinkage": "ledoit_wolf"
     },
     "pca": {
+      "enabled": true,
       "variance_threshold": 0.95
     },
     "iforest": {
+      "enabled": false,
       "n_estimators": 200,
       "max_samples": 256
     },
     "knn": {
+      "enabled": false,
       "k": 10
     },
     "gmm": {
+      "enabled": false,
       "max_components": 6
     },
     "ocsvm": {
+      "enabled": false,
       "nu": 0.05,
       "kernel": "rbf"
     },
     "pyod_ecod": {
-      "enabled": true
+      "enabled": false
     }
   },
   "fusion": {

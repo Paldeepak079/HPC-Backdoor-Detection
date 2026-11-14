@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import s from './Layout.module.css';
 
-export type Page = 'overview' | 'live' | 'traces' | 'model';
+export type Page = 'overview' | 'traces' | 'model';
 
 interface NavItemDef {
   id: Page;
@@ -11,10 +11,9 @@ interface NavItemDef {
 }
 
 const NAV_ITEMS: NavItemDef[] = [
-  { id: 'overview',    label: 'Overview',         icon: '⬡' },
-  { id: 'live',        label: 'Live Detection',    icon: '◈' },
-  { id: 'traces',      label: 'Trace Forensics',   icon: '≡' },
-  { id: 'model',       label: 'Model & Evaluation', icon: '◎' },
+  { id: 'overview', label: 'Command Center', icon: '⬡' },
+  { id: 'traces', label: 'Trace Explorer', icon: '≡' },
+  { id: 'model', label: 'Model Insights', icon: '◎' },
 ];
 
 interface LayoutProps {
