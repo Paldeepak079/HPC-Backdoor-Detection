@@ -34,6 +34,7 @@ Run from the repository root:
 
 ```powershell
 python train.py --data "HPC traces/trace.csv" --out artifact/
+python make_report.py
 ```
 
 Training always runs the configured repeated cross-validation before fitting
@@ -51,7 +52,7 @@ Generated files:
 - `predictions.csv`
 - `reports/data_audit.{json,md}`
 - `reports/experiment_results.json`
-- `reports/methodology_report.pdf`
+- `reports/methodology_report.pdf` (from the documented `make_report.py` step)
 
 ## Score unseen traces
 

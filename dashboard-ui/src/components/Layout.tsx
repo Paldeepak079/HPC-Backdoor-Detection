@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import s from './Layout.module.css';
 import { useRunDataStore } from '../store/runData';
 
-export type Page = 'overview' | 'live' | 'traces' | 'calibration' | 'settings';
+export type Page = 'overview' | 'live' | 'traces' | 'model';
 
 interface NavItemDef {
   id: Page;
@@ -12,10 +13,9 @@ interface NavItemDef {
 
 const NAV_ITEMS: NavItemDef[] = [
   { id: 'overview',    label: 'Overview',         icon: '⬡' },
-  { id: 'live',        label: 'Live Analysis',     icon: '◈' },
-  { id: 'traces',      label: 'Traces',            icon: '≡' },
-  { id: 'calibration', label: 'Model & Calibration', icon: '◎' },
-  { id: 'settings',    label: 'Settings',          icon: '⚙' },
+  { id: 'live',        label: 'Live Detection',    icon: '◈' },
+  { id: 'traces',      label: 'Trace Forensics',   icon: '≡' },
+  { id: 'model',       label: 'Model & Evaluation', icon: '◎' },
 ];
 
 interface LayoutProps {
@@ -31,6 +31,7 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
   return (
     <div className={s.layout}>
       <div className={`bg-blobs`} />
+      <a className="skip-link" href="#main-content">Skip to content</a>
 
       <aside className={`${s.sidebar} ${collapsed ? s.collapsed : ''}`}>
         <div className={s.logoArea}>
@@ -43,15 +44,18 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
 
         <nav className={s.nav}>
           {NAV_ITEMS.map(item => (
-            <button
+            <motion.button
               key={item.id}
               className={`${s.navItem} ${currentPage === item.id ? s.active : ''}`}
               onClick={() => onNavigate(item.id)}
               title={collapsed ? item.label : undefined}
+              whileHover={{ x: 3 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
             >
               <span className={s.navIcon}>{item.icon}</span>
               <span className={s.navLabel}>{item.label}</span>
-            </button>
+            </motion.button>
           ))}
         </nav>
 
@@ -72,10 +76,24 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
         </div>
       </aside>
 
-      <main className={s.main}>
-        <div className={s.pageWrapper} key={currentPage}>
+      <div className="mobile-nav" aria-label="Mobile navigation">
+        {NAV_ITEMS.map(item => (
+          <button key={item.id} className={currentPage === item.id ? 'active' : ''} onClick={() => onNavigate(item.id)}>
+            <span>{item.icon}</span><br />{item.label.split(' ')[0]}
+          </button>
+        ))}
+      </div>
+
+      <main className={s.main} id="main-content">
+        <motion.div
+          className={s.pageWrapper}
+          key={currentPage}
+          initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
           {children}
-        </div>
+        </motion.div>
       </main>
     </div>
   );

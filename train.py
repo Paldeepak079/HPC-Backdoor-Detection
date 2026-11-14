@@ -105,6 +105,7 @@ def main() -> None:
         cv_repeats=cv_repeats,
         seed=seed,
         alpha=alpha,
+        fusion_rule=cfg.get("fusion", {}).get("rule", "mean"),
     )
     Path("reports").mkdir(exist_ok=True)
     with open("reports/experiment_results.json", "w", encoding="utf-8") as f:

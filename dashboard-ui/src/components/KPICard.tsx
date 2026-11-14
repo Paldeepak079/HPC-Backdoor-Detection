@@ -1,4 +1,5 @@
 import s from './KPICard.module.css';
+import { motion } from 'framer-motion';
 
 type EvidenceType = 'measured' | 'synthetic' | 'hypothesis';
 
@@ -18,7 +19,13 @@ const EVIDENCE_LABEL: Record<EvidenceType, string> = {
 
 export default function KPICard({ label, value, sub, evidence = 'measured', accentColor }: KPICardProps) {
   return (
-    <div className={s.card}>
+    <motion.div
+      className={s.card}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.01 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    >
       {accentColor && (
         <div
           className={s.accentLine}
@@ -33,6 +40,6 @@ export default function KPICard({ label, value, sub, evidence = 'measured', acce
       <span className={`${s.badge} ${s[evidence]}`}>
         {EVIDENCE_LABEL[evidence]}
       </span>
-    </div>
+    </motion.div>
   );
 }

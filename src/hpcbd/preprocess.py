@@ -137,8 +137,10 @@ class Preprocessor:
             df = self._add_ratio_features(df)
         df = self._drop_constants(df)
 
-        # Align to fitted feature set, filling unknown cols with 0
-        df = df.reindex(columns=self._feature_cols, fill_value=0.0)
+        missing = [col for col in self._feature_cols if col not in df.columns]
+        if missing:
+            raise ValueError(f"Missing fitted feature columns after preprocessing: {missing}")
+        df = df.reindex(columns=self._feature_cols)
 
         # log1p
         for col in self._feature_cols:
@@ -148,7 +150,10 @@ class Preprocessor:
         for col in self._feature_cols:
             df[col] = (df[col] - self._medians[col]) / self._iqrs[col]
 
-        return df.to_numpy(dtype=float)
+        values = df.to_numpy(dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError("Preprocessing produced non-finite values; check input values and ratios.")
+        return values
 
     def fit_transform(self, X: pd.DataFrame) -> np.ndarray:
         """Fit then transform X."""

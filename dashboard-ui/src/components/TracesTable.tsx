@@ -120,7 +120,7 @@ export default function TracesTable({ rows, threshold, selectedRowId, onSelectRo
                       <div
                         className={s.scoreBarFill}
                         style={{
-                          width: `${row.score * 100}%`,
+                          width: `${Math.min(100, (row.score / Math.max(threshold, 1)) * 100)}%`,
                           background: `linear-gradient(90deg, var(--ok), ${scoreColor(row.score)})`,
                         }}
                       />

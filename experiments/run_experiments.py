@@ -41,6 +41,7 @@ def run_experiments(
     cv_repeats: int = 10,
     seed: int = 42,
     alpha: float = 0.05,
+    fusion_rule: str = "mean",
 ) -> dict:
     """Run repeated k-fold CV for all detectors.
 
@@ -83,6 +84,7 @@ def run_experiments(
 
         detectors = make_detectors(seed=seed)
         fold_det_scores = {}
+        fold_rank_references = {}
 
         for name, det in detectors.items():
             try:
@@ -92,6 +94,7 @@ def run_experiments(
                 # Normalise val scores using train reference
                 norm_val = normalise_scores(val_sc, train_sc)
                 fold_det_scores[name] = norm_val
+                fold_rank_references[name] = normalise_scores(train_sc, train_sc)
                 # Accumulate OOF
                 oof_scores[name][val_idx] += norm_val
                 raw_oof_scores[name][val_idx] += val_sc
@@ -101,7 +104,11 @@ def run_experiments(
 
         fold_counts[val_idx] += 1
         # Fuse for this fold
-        fused_val = fuse_scores(fold_det_scores, rule="mean")
+        fused_val = fuse_scores(
+            fold_det_scores,
+            rule=fusion_rule,
+            rank_references=fold_rank_references,
+        )
 
         elapsed = time.time() - t0
         fold_results.append({
@@ -118,7 +125,7 @@ def run_experiments(
             print(f"  Fold {fold_idx+1}/{total_folds} done.")
 
     # Average OOF scores
-    safe_counts = np.maximum(fold_counts, 1) / cv_repeats  # normalize by repeats
+    safe_counts = np.maximum(fold_counts, 1)  # average every repeated validation score
     for name in oof_scores:
         oof_scores[name] = oof_scores[name] / safe_counts
         raw_oof_scores[name] = raw_oof_scores[name] / safe_counts
@@ -130,7 +137,11 @@ def run_experiments(
         name: normalise_scores(scores, scores)
         for name, scores in raw_oof_scores.items()
     }
-    fused_oof = fuse_scores(calibration_scores, rule="mean")
+    fused_oof = fuse_scores(
+        calibration_scores,
+        rule=fusion_rule,
+        rank_references=calibration_scores,
+    )
 
     # Calibrate
     tau = calibrate(fused_oof, alpha=alpha)
@@ -154,6 +165,7 @@ def run_experiments(
             "cv_repeats": cv_repeats,
             "seed": seed,
             "alpha": alpha,
+            "fusion_rule": fusion_rule,
         },
         "tau": float(tau),
         "fused_oof_stats": {
@@ -184,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--alpha", type=float, default=0.05)
+    parser.add_argument("--fusion-rule", default="mean", choices=["mean", "max", "rank_mean"])
     args = parser.parse_args()
 
     results = run_experiments(
@@ -192,6 +205,7 @@ if __name__ == "__main__":
         cv_repeats=args.repeats,
         seed=args.seed,
         alpha=args.alpha,
+        fusion_rule=args.fusion_rule,
     )
 
     out_path = Path(args.out)

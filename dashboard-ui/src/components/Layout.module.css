@@ -4,7 +4,7 @@
   width: 100vw;
   overflow: hidden;
   position: relative;
-  background: linear-gradient(135deg, #0A0E1A 0%, #0D1428 50%, #0A1020 100%);
+  background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%);
 }
 
 .sidebar {
@@ -13,7 +13,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(10, 14, 26, 0.85);
+  background: var(--glass-solid);
   border-right: 1px solid var(--glass-border);
   backdrop-filter: blur(24px);
   transition: width var(--transition-std), min-width var(--transition-std);
@@ -203,4 +203,18 @@
 .sidebarFooter {
   padding: 12px 8px;
   border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 680px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main {
+    padding-bottom: 72px;
+  }
+
+  .pageWrapper {
+    padding: 16px;
+  }
 }

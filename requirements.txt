@@ -6,3 +6,4 @@ scikit-learn==1.9.0
 scipy==1.18.1
 pyod==3.6.8
 river==0.27.0
+matplotlib==3.10.7

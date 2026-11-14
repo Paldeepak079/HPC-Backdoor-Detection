@@ -28,6 +28,7 @@ class KNNDetector:
         self._nn = NearestNeighbors(n_neighbors=k_actual + 1, metric=self.metric)
         self._nn.fit(X)
         self._k_actual = k_actual
+        self._fit_X = X
         return self
 
     def score(self, X: np.ndarray) -> np.ndarray:
@@ -43,8 +44,12 @@ class KNNDetector:
         """
         if self._nn is None:
             raise RuntimeError("Detector not fitted. Call fit() first.")
-        # First neighbour is the point itself when scoring training data
-        distances, _ = self._nn.kneighbors(X)
-        # Exclude self (index 0) and average over k neighbours
-        mean_dist = distances[:, 1:self._k_actual + 1].mean(axis=1)
+        if X is getattr(self, "_fit_X", None):
+            # Fitted samples include themselves as the zero-distance neighbour.
+            distances, _ = self._nn.kneighbors(X, n_neighbors=self._k_actual + 1)
+            distances = distances[:, 1:]
+        else:
+            # New samples have no self-neighbour to discard.
+            distances, _ = self._nn.kneighbors(X, n_neighbors=self._k_actual)
+        mean_dist = distances.mean(axis=1)
         return mean_dist

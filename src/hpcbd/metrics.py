@@ -31,6 +31,10 @@ def compute_metrics(
     """
     y_true = np.asarray(y_true, dtype=int)
     scores = np.asarray(scores, dtype=float)
+    if len(np.unique(y_true)) != 2:
+        raise ValueError(
+            "Classification metrics require both benign (0) and anomalous (1) labels."
+        )
     y_pred = (scores > threshold).astype(int)
 
     # Basic counts
@@ -66,11 +70,8 @@ def compute_metrics(
 def _auroc(y_true: np.ndarray, scores: np.ndarray) -> float:
     """Compute AUC-ROC via the trapezoidal rule.
 
-    If there is only one class present, returns 0.5.
+    Both classes must be present; callers validate this before calling.
     """
-    if len(np.unique(y_true)) < 2:
-        return 0.5
-
     # Sort by descending score
     order = np.argsort(scores)[::-1]
     y_sorted = y_true[order]
@@ -78,7 +79,7 @@ def _auroc(y_true: np.ndarray, scores: np.ndarray) -> float:
     n_pos = y_true.sum()
     n_neg = len(y_true) - n_pos
     if n_pos == 0 or n_neg == 0:
-        return 0.5
+        raise ValueError("AUROC requires both benign and anomalous labels.")
 
     tprs = [0.0]
     fprs = [0.0]

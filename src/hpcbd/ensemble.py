@@ -56,6 +56,7 @@ def normalise_scores(
 def fuse_scores(
     normalised_scores_dict: dict[str, np.ndarray],
     rule: str = "mean",
+    rank_references: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Fuse per-detector normalised scores into a single ensemble score.
 
@@ -80,10 +81,15 @@ def fuse_scores(
     elif rule == "max":
         return matrix.max(axis=1)
     elif rule == "rank_mean":
-        # Convert each column to rank, average ranks
-        from scipy.stats import rankdata
-        ranked = np.stack([rankdata(matrix[:, i]) for i in range(matrix.shape[1])], axis=1)
-        return ranked.mean(axis=1)
+        if rank_references is None:
+            raise ValueError("rank_mean requires OOF rank_references.")
+        ranks = []
+        for name, values in normalised_scores_dict.items():
+            reference = np.sort(np.asarray(rank_references[name], dtype=float))
+            if not len(reference):
+                raise ValueError(f"rank_mean reference for {name!r} is empty.")
+            ranks.append(np.searchsorted(reference, values, side="right") / len(reference))
+        return np.stack(ranks, axis=1).mean(axis=1)
     else:
         raise ValueError(f"Unknown fusion rule: {rule!r}. Choose 'mean', 'max', or 'rank_mean'.")
 
@@ -107,6 +113,7 @@ class EnsembleDetector:
         self.detectors = detectors
         self.fusion_rule = fusion_rule
         self._oof_scores: dict[str, np.ndarray] = {}
+        self._rank_references: dict[str, np.ndarray] = {}
         self._fitted = False
 
     def fit(self, X: np.ndarray, oof_scores: dict[str, np.ndarray] | None = None) -> "EnsembleDetector":
@@ -128,6 +135,7 @@ class EnsembleDetector:
             if ref is None:
                 ref = det.score(X)
             self._oof_scores[name] = ref
+            self._rank_references[name] = normalise_scores(ref, ref)
 
         self._fitted = True
         return self
@@ -150,5 +158,9 @@ class EnsembleDetector:
             raw[name] = det.score(X)
             normalised[name] = normalise_scores(raw[name], self._oof_scores[name])
 
-        fused = fuse_scores(normalised, rule=self.fusion_rule)
+        fused = fuse_scores(
+            normalised,
+            rule=self.fusion_rule,
+            rank_references=self._rank_references,
+        )
         return fused, normalised

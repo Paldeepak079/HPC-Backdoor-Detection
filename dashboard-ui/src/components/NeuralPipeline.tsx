@@ -8,6 +8,7 @@ interface NeuralPipelineProps {
   detectors: string[];
   animating: boolean;
   onAnimationEnd?: () => void;
+  reducedMotion?: boolean;
 }
 
 interface NodeDef {
@@ -34,17 +35,10 @@ interface Particle {
 
 const HPC_COUNTERS = ['cache-ref', 'cycles', 'LLC-loads'];
 const TRANSFORMS = ['log1p', 'scale', 'ratio'];
-const DETECTOR_NAMES = ['Mahal', 'PCA', 'IForest', 'kNN', 'GMM', 'OCSVM'];
+const DETECTOR_NAMES = ['Mahal', 'PCA', 'IForest', 'kNN', 'GMM', 'OCSVM', 'ECOD'];
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
-
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
 
 function scoreToColor(score: number): string {
   // 0 = ok/green, 1 = threat/red, interpolated
@@ -70,9 +64,19 @@ function zScoreToColor(z: number): string {
     const b = Math.round(lerp(255, 255, t));
     return `rgb(${r},${g},${b})`;
   }
+
 }
 
-export default function NeuralPipeline({ row, threshold, detectors, animating, onAnimationEnd }: NeuralPipelineProps) {
+function withAlpha(color: string, alpha: number): string {
+  const match = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/);
+  return match ? `rgba(${match[1]},${match[2]},${match[3]},${alpha})` : color;
+}
+
+function scoreToRank(score: number): number {
+  return clamp(1 - Math.exp(-Math.max(score, 0)), 0, 1);
+}
+
+export default function NeuralPipeline({ row, threshold, detectors, animating, onAnimationEnd, reducedMotion = false }: NeuralPipelineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const rafRef = useRef<number>(0);
@@ -125,27 +129,29 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
     detNames.forEach((name, i) => {
       const shortName = DETECTOR_NAMES[i] ?? name.slice(0, 6);
       const detScore = row?.stage_scores[name] ?? 0;
+      const displayDetScore = scoreToRank(detScore);
       nodes.push({
         id: `det_${i}`,
         x: COL_DETECTOR,
         y: 30 + i * 38,
-        r: 10 + detScore * 8,
-        color: scoreToColor(detScore),
+        r: 10 + displayDetScore * 8,
+        color: scoreToColor(displayDetScore),
         label: shortName,
-        score: detScore,
+        score: displayDetScore,
       });
     });
 
     // Fusion node
     const fusedScore = row?.score ?? 0;
+    const displayFusedScore = scoreToRank(fusedScore);
     nodes.push({
       id: 'fusion',
       x: COL_FUSION,
       y: H / 2,
       r: 22,
-      color: scoreToColor(fusedScore),
+      color: scoreToColor(displayFusedScore),
       label: 'fused',
-      score: fusedScore,
+      score: displayFusedScore,
     });
 
     // Verdict node
@@ -165,7 +171,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
 
   const buildEdges = useCallback((): EdgeDef[] => {
     const edges: EdgeDef[] = [];
-    const detCount = Math.min(detectors.length || DETECTOR_NAMES.length, 6);
+    const detCount = detectors.length || DETECTOR_NAMES.length;
 
     // Input → Transform (all to all)
     HPC_COUNTERS.forEach((_, i) => {
@@ -197,7 +203,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!;
     if (!ctx) return;
 
     const nodes = buildNodes(row);
@@ -216,7 +222,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
       }));
     }
 
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReduced = reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function drawGlowCircle(
       ctx: CanvasRenderingContext2D,
@@ -225,7 +231,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
     ) {
       // Glow
       const grd = ctx.createRadialGradient(x, y, r * 0.2, x, y, glowRadius);
-      grd.addColorStop(0, glowColor.replace(')', ', 0.35)').replace('rgb', 'rgba'));
+      grd.addColorStop(0, withAlpha(glowColor, 0.35));
       grd.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.beginPath();
       ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
@@ -241,7 +247,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
       // Ring
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.strokeStyle = fillColor.replace('rgb', 'rgba').replace(')', ', 0.9)');
+      ctx.strokeStyle = withAlpha(fillColor, 0.9);
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
@@ -278,7 +284,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
       const ty2 = y + (r + 4) * Math.sin(threshAngle);
       ctx.beginPath();
       ctx.arc(tx2, ty2, 3, 0, Math.PI * 2);
-      ctx.fillStyle = 'var(--threat)';
+      ctx.fillStyle = 'rgb(255,92,122)';
       ctx.fill();
 
       // Center score text
@@ -318,6 +324,11 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
       lastTime = now;
       timeRef.current += dt;
       const t = timeRef.current;
+
+      if (t > 1 && phaseRef.current === 1) {
+        phaseRef.current = 2;
+        onAnimationEnd?.();
+      }
 
       ctx.clearRect(0, 0, W, H);
 
@@ -384,7 +395,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
 
         // Fusion: ring gauge
         if (isFusionNode) {
-          drawGauge(ctx, node.x, node.y, node.r + 8, node.score ?? 0, threshold, t);
+          drawGauge(ctx, node.x, node.y, node.r + 8, node.score ?? 0, scoreToRank(threshold), t);
         } else {
           // Entrance animation: nodes appear in waves
           const col = node.id.startsWith('input') ? 0
@@ -437,7 +448,7 @@ export default function NeuralPipeline({ row, threshold, detectors, animating, o
 
     rafRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [row, threshold, animating, buildNodes, buildEdges, detectors]);
+  }, [row, threshold, animating, buildNodes, buildEdges, detectors, onAnimationEnd, reducedMotion]);
 
   return (
     <div className={s.wrap}>

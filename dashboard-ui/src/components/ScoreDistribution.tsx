@@ -22,6 +22,7 @@ export default function ScoreDistribution({
   nBins = 50,
 }: ScoreDistributionProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [showTable, setShowTable] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState>({ x: 0, y: 0, content: '', visible: false });
 
   const W = 100; // viewBox units
@@ -29,16 +30,17 @@ export default function ScoreDistribution({
   const PAD = { top: 8, right: 4, bottom: 24, left: 32 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
+  const maxScore = Math.max(...scores, threshold, 1);
 
   // Build histogram
   const bins: number[] = new Array(nBins).fill(0);
   scores.forEach(s => {
-    const idx = Math.min(nBins - 1, Math.floor(s * nBins));
+    const idx = Math.min(nBins - 1, Math.floor((s / maxScore) * nBins));
     bins[idx]++;
   });
   const maxCount = Math.max(...bins, 1);
 
-  const threshBin = threshold * nBins;
+  const threshBin = (threshold / maxScore) * nBins;
 
   // Convert bin index to x pixel
   const bx = (i: number) => PAD.left + (i / nBins) * plotW;
@@ -49,8 +51,8 @@ export default function ScoreDistribution({
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     const relX = (e.clientX - rect.left) / rect.width * W;
-    const score = Math.max(0, Math.min(1, (relX - PAD.left) / plotW));
-    const binIdx = Math.floor(score * nBins);
+    const score = Math.max(0, Math.min(maxScore, ((relX - PAD.left) / plotW) * maxScore));
+    const binIdx = Math.floor((score / maxScore) * nBins);
     const count = bins[Math.max(0, Math.min(nBins - 1, binIdx))] ?? 0;
     setTooltip({
       x: e.clientX - rect.left,
@@ -67,6 +69,9 @@ export default function ScoreDistribution({
   return (
     <div className={s.wrap}>
       <div className={s.title}>Score Distribution</div>
+      <button className="control-button chart-table-toggle" onClick={() => setShowTable(value => !value)}>
+        {showTable ? 'Hide data table' : 'View as table'}
+      </button>
       <div className={s.svgWrap}>
         <svg
           ref={svgRef}
@@ -110,7 +115,7 @@ export default function ScoreDistribution({
 
           {/* Threshold line */}
           {(() => {
-            const tx = PAD.left + threshold * plotW;
+            const tx = PAD.left + (threshold / maxScore) * plotW;
             return (
               <g>
                 <line
@@ -143,7 +148,7 @@ export default function ScoreDistribution({
               textAnchor="middle"
               fontFamily="JetBrains Mono, monospace"
             >
-              {v.toFixed(2)}
+              {(v * maxScore).toFixed(2)}
             </text>
           ))}
         </svg>
@@ -163,6 +168,13 @@ export default function ScoreDistribution({
           <div className={s.legendDot} style={{ background: 'var(--ok)' }} />
           <span>Below τ (clean)</span>
         </div>
+        {showTable && (
+          <table className="accessible-chart-table">
+            <caption>Score distribution bins</caption>
+            <thead><tr><th>Range</th><th>Count</th></tr></thead>
+            <tbody>{bins.map((count, index) => <tr key={index}><td>{(index * maxScore / nBins).toFixed(2)}–{((index + 1) * maxScore / nBins).toFixed(2)}</td><td>{count}</td></tr>)}</tbody>
+          </table>
+        )}
         <div className={s.legendItem}>
           <div className={s.legendDot} style={{ background: 'var(--threat)' }} />
           <span>Above τ (flagged)</span>

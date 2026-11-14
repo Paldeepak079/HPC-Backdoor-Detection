@@ -28,80 +28,24 @@ def cmd_audit(args: argparse.Namespace) -> None:
 
 
 def cmd_fit(args: argparse.Namespace) -> None:
-    """Fit the ensemble and save artifact."""
-    from hpcbd.io import load_csv
-    from hpcbd.preprocess import Preprocessor
-    from hpcbd.detectors import (
-        MahalanobisDetector, PCADetector, IForestDetector,
-        KNNDetector, GMMDetector, OCSVMDetector,
-    )
-    from hpcbd.ensemble import EnsembleDetector
-    from hpcbd.calibrate import calibrate
-    from hpcbd.artifact import save_artifact
-    import yaml
+    """Delegate to the canonical leakage-safe training pipeline."""
+    import subprocess
 
-    cfg = {}
-    if args.config and Path(args.config).exists():
-        with open(args.config) as f:
-            cfg = yaml.safe_load(f) or {}
-
-    seed = cfg.get("seed", 42)
-    alpha = float(cfg.get("alpha", 0.05))
-
-    df = load_csv(args.data)
-    prep = Preprocessor(
-        add_ratios=cfg.get("preprocess", {}).get("add_ratios", True),
-    )
-    X = prep.fit_transform(df)
-
-    dcfg = cfg.get("detectors", {})
-    detectors = {
-        "mahalanobis": MahalanobisDetector(),
-        "pca": PCADetector(variance_threshold=dcfg.get("pca", {}).get("variance_threshold", 0.95)),
-        "iforest": IForestDetector(
-            n_estimators=dcfg.get("iforest", {}).get("n_estimators", 200),
-            max_samples=dcfg.get("iforest", {}).get("max_samples", 256),
-            random_state=seed,
-        ),
-        "knn": KNNDetector(k=dcfg.get("knn", {}).get("k", 10)),
-        "gmm": GMMDetector(
-            max_components=dcfg.get("gmm", {}).get("max_components", 6),
-            random_state=seed,
-        ),
-        "ocsvm": OCSVMDetector(
-            nu=dcfg.get("ocsvm", {}).get("nu", 0.05),
-            kernel=dcfg.get("ocsvm", {}).get("kernel", "rbf"),
-        ),
-    }
-
-    fusion_rule = cfg.get("fusion", {}).get("rule", "mean")
-    ensemble = EnsembleDetector(detectors, fusion_rule=fusion_rule)
-    ensemble.fit(X)
-
-    # Calibrate using training scores
-    fused, _ = ensemble.score(X)
-    tau = calibrate(fused, alpha=alpha)
-
-    out_path = Path(args.out)
-    from hpcbd.io import DEFAULT_SCHEMA
-    save_artifact(
-        detector=ensemble,
-        preprocessor=prep,
-        tau=tau,
-        alpha=alpha,
-        schema=DEFAULT_SCHEMA,
-        config=cfg,
-        path=out_path,
-    )
-    print(f"[fit] tau = {tau:.6f}")
+    root = Path(__file__).resolve().parents[2]
+    command = [
+        sys.executable, str(root / "train.py"), "--data", str(Path(args.data).resolve()),
+        "--out", str(Path(args.out).resolve()), "--config", str(Path(args.config).resolve()),
+    ]
+    subprocess.run(command, check=True, cwd=root)
 
 
 def cmd_score(args: argparse.Namespace) -> None:
     """Score a CSV file using a saved artifact."""
     from hpcbd.artifact import load_artifact
+    from hpcbd.io import load_csv
 
     det, prep, tau, alpha, schema, cfg = load_artifact(args.artifact)
-    df = pd.read_csv(args.input)
+    df = load_csv(args.input, schema=schema)
     X = prep.transform(df)
     fused, per_det = det.score(X)
 
@@ -118,9 +62,10 @@ def cmd_score(args: argparse.Namespace) -> None:
 def cmd_predict(args: argparse.Namespace) -> None:
     """Score + threshold to produce binary predictions."""
     from hpcbd.artifact import load_artifact
+    from hpcbd.io import load_csv
 
     det, prep, tau, alpha, schema, cfg = load_artifact(args.artifact)
-    df = pd.read_csv(args.input)
+    df = load_csv(args.input, schema=schema)
     X = prep.transform(df)
     fused, per_det = det.score(X)
 
@@ -159,7 +104,10 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     else:
         fused = df[score_col].to_numpy()
 
-    metrics = compute_metrics(y_true, fused, tau)
+    try:
+        metrics = compute_metrics(y_true, fused, tau)
+    except ValueError as error:
+        raise SystemExit(f"[evaluate] ERROR: {error}") from error
     print("[evaluate] Metrics:")
     for k, v in metrics.items():
         print(f"  {k}: {v}")

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { RunData, TraceRow } from '../types/runData';
-import { sampleRunData } from '../data/sampleRun';
 
 interface RunDataState {
   runData: RunData | null;
@@ -14,12 +13,12 @@ interface RunDataState {
 }
 
 export const useRunDataStore = create<RunDataState>((set) => ({
-  runData: sampleRunData,
-  isSampleData: true,
+  runData: null,
+  isSampleData: false,
   selectedRow: null,
   pipelineAnimating: false,
   setRunData: (data, isSample = false) => set({ runData: data, isSampleData: isSample, selectedRow: null }),
   setSelectedRow: (row) => set({ selectedRow: row, pipelineAnimating: true }),
   setPipelineAnimating: (val) => set({ pipelineAnimating: val }),
-  loadSampleData: () => set({ runData: sampleRunData, isSampleData: true, selectedRow: null }),
+  loadSampleData: () => set({ runData: null, isSampleData: false, selectedRow: null }),
 }));

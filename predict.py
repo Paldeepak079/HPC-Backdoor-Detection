@@ -12,10 +12,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-import pandas as pd
 import numpy as np
 
 from hpcbd.artifact import load_artifact
+from hpcbd.io import load_csv
 
 
 def main() -> None:
@@ -30,7 +30,7 @@ def main() -> None:
     print(f"  tau = {tau:.6f}, alpha = {alpha}")
 
     print(f"[predict] Loading input from: {args.input}")
-    df = pd.read_csv(args.input)
+    df = load_csv(args.input, schema=schema)
     print(f"  Shape: {df.shape}")
 
     # Preprocess

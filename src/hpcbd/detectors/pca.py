@@ -16,6 +16,10 @@ class PCADetector:
         self.variance_threshold = variance_threshold
         self._pca: PCA | None = None
         self._n_components: int = 0
+        self._recon_mean = 0.0
+        self._recon_std = 1.0
+        self._t2_mean = 0.0
+        self._t2_std = 1.0
 
     def fit(self, X: np.ndarray) -> "PCADetector":
         """Fit PCA retaining enough components to explain ``variance_threshold`` variance.
@@ -34,6 +38,15 @@ class PCADetector:
         self._n_components = n_comp
         self._pca = PCA(n_components=n_comp)
         self._pca.fit(X)
+        train_proj = self._pca.transform(X)
+        train_recon = self._pca.inverse_transform(train_proj)
+        train_recon_err = np.mean((X - train_recon) ** 2, axis=1)
+        pc_var = np.maximum(self._pca.explained_variance_, 1e-10)
+        train_t2 = np.sum(train_proj ** 2 / pc_var, axis=1)
+        self._recon_mean = float(train_recon_err.mean())
+        self._recon_std = max(float(train_recon_err.std()), 1e-10)
+        self._t2_mean = float(train_t2.mean())
+        self._t2_std = max(float(train_t2.std()), 1e-10)
         return self
 
     def score(self, X: np.ndarray) -> np.ndarray:
@@ -65,13 +78,7 @@ class PCADetector:
         pc_var = np.maximum(pc_var, 1e-10)
         t2 = np.sum(X_proj ** 2 / pc_var, axis=1)
 
-        # Normalize both to comparable scale then sum
-        # Simple combination: z-score both and sum
-        def _normalize(arr):
-            std = arr.std()
-            if std < 1e-10:
-                return arr - arr.mean()
-            return (arr - arr.mean()) / std
-
-        score = _normalize(recon_err) + _normalize(t2)
+        # Normalize against the fitted training reference, not the scoring batch.
+        score = ((recon_err - self._recon_mean) / self._recon_std
+                 + (t2 - self._t2_mean) / self._t2_std)
         return score

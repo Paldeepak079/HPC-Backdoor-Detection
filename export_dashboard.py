@@ -31,7 +31,8 @@ def _make_serialisable(obj):
     if isinstance(obj, (np.integer,)):
         return int(obj)
     if isinstance(obj, (np.floating,)):
-        return float(obj)
+        value = float(obj)
+        return None if not np.isfinite(value) else value
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, float) and (np.isnan(obj) or np.isinf(obj)):
@@ -55,8 +56,13 @@ def main() -> None:
     print(f"  {n} rows loaded.")
 
     # Identify score columns
-    score_col = "score" if "score" in pred_df.columns else None
-    label_col = "label" if "label" in pred_df.columns else None
+    missing_columns = {"score", "label"} - set(pred_df.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Predictions CSV is missing required columns: {sorted(missing_columns)}"
+        )
+    score_col = "score"
+    label_col = "label"
 
     det_score_cols = [c for c in pred_df.columns if c.startswith("score_")]
 
@@ -67,8 +73,8 @@ def main() -> None:
     rows = []
     feature_cols = [c for c in schema if c in pred_df.columns]
 
-    scores_arr = pred_df[score_col].to_numpy(dtype=float) if score_col else np.zeros(n)
-    labels_arr = pred_df[label_col].to_numpy(dtype=int) if label_col else (scores_arr > tau).astype(int)
+    scores_arr = pred_df[score_col].to_numpy(dtype=float)
+    labels_arr = pred_df[label_col].to_numpy(dtype=int)
 
     for i in range(n):
         raw_row = pred_df.iloc[i]
