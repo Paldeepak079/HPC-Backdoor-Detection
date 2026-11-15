@@ -21,8 +21,13 @@ contains both classes.
 
 ## Setup
 
-Use Python 3.13 (the current verified environment) or a compatible supported
-Python version:
+Pinned environment:
+
+- Windows PowerShell
+- Python 3.13
+- Exact Python package versions in `requirements.txt`
+- Node dependencies locked by `dashboard-ui/package-lock.json`
+- Node.js 22 LTS (or newer Node.js compatible with the lockfile)
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -32,6 +37,12 @@ Run the regression suite with:
 
 ```powershell
 python -m pytest -q
+```
+
+Lint with the pinned Ruff release:
+
+```powershell
+ruff check .
 ```
 
 GitHub Actions runs the Python suite on Python 3.13 and builds the dashboard on
@@ -67,6 +78,15 @@ Generated files:
 - `reports/methodology_report.pdf` (from the documented `make_report.py` step)
 - `dashboard-ui/public/data/` (dashboard export)
 
+## Deliverable checklist
+
+- [ ] `artifact/preprocessor.joblib`
+- [ ] `artifact/ensemble_detector.joblib`
+- [ ] `artifact/config.json` and `artifact/manifest.json`
+- [ ] `predictions.csv`
+- [ ] `reports/methodology_report.pdf`
+- [ ] `dashboard-ui/dist/`
+
 ## Score unseen traces
 
 ```powershell
@@ -76,8 +96,13 @@ python predict.py `
   --out predictions.csv
 ```
 
-The output preserves input columns and adds `score`, `label`, and each
-per-detector score. `label=0` is Clean and `label=1` is Suspicious.
+The output-column contract is append-only: all input columns are preserved in
+their original order and values. The three required feature columns are
+`cache-references`, `cycles`, and `LLC-loads`; any extra ID, ground-truth, or
+text columns are passed through unchanged. Prediction columns are appended as
+`score`, `label`, and `score_<detector>`. If an input already has one of those
+names, the generated column is prefixed with `prediction_` so the input column
+is never overwritten. `label=0` is Clean and `label=1` is Suspicious.
 
 ## Evaluate labelled data
 
@@ -89,6 +114,12 @@ python evaluate.py `
   --input "path\to\labelled.csv" `
   --artifact artifact\ `
   --out reports\evaluation.json
+```
+
+Exact evaluation command for the supplied benign-only data:
+
+```powershell
+python evaluate.py --input "HPC traces\trace.csv" --artifact artifact\ --out reports\evaluation_benign_only.json
 ```
 
 The JSON contains Accuracy, TPR, FPR, F1, AUROC, confusion counts, sample

@@ -14,9 +14,26 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def make_report(audit_path: Path, experiment_path: Path, output: Path) -> None:
+def _active_detector_names(config: dict) -> list[str]:
+    display_names = {"mahalanobis": "Mahalanobis", "pca": "PCA"}
+    return [
+        display_names.get(name, name.replace("_", " ").title())
+        for name, settings in config.get("detectors", {}).items()
+        if settings.get("enabled", False)
+    ]
+
+
+def make_report(
+    audit_path: Path,
+    experiment_path: Path,
+    output: Path,
+    config_path: Path = Path("artifact/config.json"),
+) -> None:
     audit = _read_json(audit_path)
     experiment = _read_json(experiment_path)
+    config = _read_json(config_path)
+    active_detectors = _active_detector_names(config)
+    detector_text = " + ".join(active_detectors) if active_detectors else "no configured detectors"
     output.parent.mkdir(parents=True, exist_ok=True)
 
     with PdfPages(output) as pdf:
@@ -36,15 +53,14 @@ def make_report(audit_path: Path, experiment_path: Path, output: Path) -> None:
             "then non-negative log1p transforms and robust median/IQR scaling are fitted on each\n"
             "training fold. The fitted preprocessor is persisted with the model.\n\n"
             "Detection models\n"
-            "The batch ensemble combines Ledoit-Wolf Mahalanobis distance, PCA reconstruction/\n"
-            "Hotelling T², Isolation Forest, k-nearest-neighbour distance, GMM likelihood,\n"
-            "One-Class SVM and PyOD ECOD. Per-detector scores are converted through an empirical\n"
-            "CDF and averaged. River Half-Space Trees is kept as an opt-in prequential detector\n"
-            "for ordered streaming data, not silently mixed into batch scoring.\n\n"
+            f"The active batch detectors are {detector_text}. Per-detector scores are converted\n"
+            "through an empirical CDF and averaged. Other detectors remain available only when\n"
+            "explicitly enabled in config.json. River Half-Space Trees is kept as an opt-in\n"
+            "prequential detector for ordered streaming data, not silently mixed into batch scoring.\n\n"
             "Calibration and validation\n"
-            f"Repeated {experiment['meta']['cv_repeats']}×{experiment['meta']['cv_folds']}-fold CV fits\n"
+            f"Repeated {experiment['meta']['cv_repeats']}x{experiment['meta']['cv_folds']}-fold CV fits\n"
             "preprocessing and detectors inside each fold. The final threshold is the finite-sample\n"
-            "conformal upper quantile at the configured alpha. This estimates a benign false-alarm\n"
+            f"conformal upper quantile at the configured alpha (τ={experiment['tau']:.5f}). This estimates a benign false-alarm\n"
             "budget; it does not estimate TPR, F1 or AUROC.",
             fontsize=10, va="top", linespacing=1.35,
         )
@@ -96,6 +112,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit", default="reports/data_audit.json")
     parser.add_argument("--experiments", default="reports/experiment_results.json")
+    parser.add_argument("--config", default="artifact/config.json")
     parser.add_argument("--out", default="reports/methodology_report.pdf")
     args = parser.parse_args()
-    make_report(Path(args.audit), Path(args.experiments), Path(args.out))
+    make_report(Path(args.audit), Path(args.experiments), Path(args.out), Path(args.config))
