@@ -80,7 +80,7 @@ def make_report(
         pdf.savefig(fig)
         plt.close(fig)
 
-        fig, ax = plt.subplots(figsize=(8.27, 11.69))
+        fig = plt.figure(figsize=(8.27, 11.69))
         fig.text(0.08, 0.93, "Reproducibility and limitations", fontsize=20, weight="bold")
         fig.text(
             0.08, 0.87,
